@@ -3,6 +3,8 @@
 
 # Ignore Gradle build output directory
 /build/
+# Ignore IDEA build output directory
+/out/
 
 /.idea/
 /.settings/
