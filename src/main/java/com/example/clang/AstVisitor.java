@@ -27,14 +27,13 @@ import static org.bytedeco.llvm.global.clang.clang_parseTranslationUnit2;
 /**
  * https://github.com/sabottenda/libclang-sample/blob/master/AST/ASTVisitor.cc
  */
-public class ClangASTVisitorExample {
-	private ClangASTVisitorExample() {
+public class AstVisitor {
+	private AstVisitor() {
 		assert false;
 	}
 
 	public static void main(final String[] args) throws URISyntaxException {
-		// Location of the *.cc file
-		final URL resourceOrNull = ClangASTVisitorExample.class.getResource("array-subscript.c" /*"sample1.cc"*/);
+		final URL resourceOrNull = AstVisitor.class.getResource("array-subscript.c" /*"sample1.cc"*/);
 		if (resourceOrNull == null) {
 			System.out.println("File doesn't exist");
 			return;
@@ -50,8 +49,18 @@ public class ClangASTVisitorExample {
 		final BytePointer source_filename = new BytePointer(file.toString());
 		final PointerPointer<?> command_line_args_ptr = new PointerPointer<>(command_line_args);
 		final CXTranslationUnit translationUnit = new CXTranslationUnit();
-		checkError(clang_parseTranslationUnit2(index, source_filename, command_line_args_ptr, command_line_args.length,
-											   unsaved_files, num_unsaved_files, CXTranslationUnit_None, translationUnit));
+		checkError(
+				clang_parseTranslationUnit2(
+						index,
+						source_filename,
+						command_line_args_ptr,
+						command_line_args.length,
+						unsaved_files,
+						num_unsaved_files,
+						CXTranslationUnit_None,
+						translationUnit
+				)
+		);
 
 		// traverse the elements
 		final CXCursor rootCursor = clang_getTranslationUnitCursor(translationUnit);

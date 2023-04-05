@@ -2,18 +2,26 @@ package com.example.clang;
 
 import org.bytedeco.llvm.clang.CXCursor;
 import org.bytedeco.llvm.clang.CXFile;
+import org.bytedeco.llvm.clang.CXToken;
+import org.bytedeco.llvm.clang.CXTranslationUnit;
 import org.bytedeco.llvm.clang.CXType;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import static com.example.clang.ChildVisitResult.BREAK;
 import static com.example.clang.ChildVisitResult.CONTINUE;
+import static com.example.clang.Utils.check;
+import static java.lang.String.format;
 import static org.bytedeco.llvm.global.clang.CXLinkage_External;
 import static org.bytedeco.llvm.global.clang.CXLinkage_Internal;
 import static org.bytedeco.llvm.global.clang.CXLinkage_Invalid;
 import static org.bytedeco.llvm.global.clang.CXLinkage_NoLinkage;
 import static org.bytedeco.llvm.global.clang.CXLinkage_UniqueExternal;
-import static org.bytedeco.llvm.global.clang.clang_getCursorExtent;
+import static org.bytedeco.llvm.global.clang.CXToken_Comment;
+import static org.bytedeco.llvm.global.clang.CXToken_Identifier;
+import static org.bytedeco.llvm.global.clang.CXToken_Keyword;
+import static org.bytedeco.llvm.global.clang.CXToken_Literal;
+import static org.bytedeco.llvm.global.clang.CXToken_Punctuation;
 import static org.bytedeco.llvm.global.clang.clang_getCursorKind;
 import static org.bytedeco.llvm.global.clang.clang_getCursorKindSpelling;
 import static org.bytedeco.llvm.global.clang.clang_getCursorLexicalParent;
@@ -24,6 +32,9 @@ import static org.bytedeco.llvm.global.clang.clang_getCursorType;
 import static org.bytedeco.llvm.global.clang.clang_getCursorUSR;
 import static org.bytedeco.llvm.global.clang.clang_getFileName;
 import static org.bytedeco.llvm.global.clang.clang_getIncludedFile;
+import static org.bytedeco.llvm.global.clang.clang_getTokenExtent;
+import static org.bytedeco.llvm.global.clang.clang_getTokenKind;
+import static org.bytedeco.llvm.global.clang.clang_getTokenSpelling;
 import static org.bytedeco.llvm.global.clang.clang_getTypeKindSpelling;
 import static org.bytedeco.llvm.global.clang.clang_getTypeSpelling;
 import static org.bytedeco.llvm.global.clang.clang_isAttribute;
@@ -53,10 +64,11 @@ public final class TemplateVisitor implements CursorVisitor {
 
             System.out.printf("%s: depth = %d%n", location, depth);
 
-            // XXX Use clang_getCursorExtent to get the range and tokenize the source if necessary.
-
             showCursorKind(cursor);
             showType(cursor);
+            try (final Tokens tokens = new Tokens(cursor)) {
+                tokens.forEach(pair -> showToken(pair.getFirst(), pair.getSecond()));
+            }
             showSpelling(cursor);
             showUsr(cursor);
             showLinkage(cursor);
@@ -75,11 +87,42 @@ public final class TemplateVisitor implements CursorVisitor {
         }
     }
 
+    private static @NonNull String tokenKindSpelling(final int kind) {
+        return switch (kind) {
+            case CXToken_Punctuation -> "Punctuation";
+            case CXToken_Keyword -> "Keyword";
+            case CXToken_Identifier -> "Identifier";
+            case CXToken_Literal -> "Literal";
+            case CXToken_Comment -> "Comment";
+            default -> throw new RuntimeException("Unknown token kind: " + kind);
+        };
+    }
+
+    private static void showToken(
+            final @NonNull CXTranslationUnit translationUnit,
+            final @NonNull CXToken token
+    ) {
+        try (final SourceRange tokenRange = new SourceRange(clang_getTokenExtent(translationUnit, token))) {
+            final String tokenKind = tokenKindSpelling(clang_getTokenKind(token));
+            final String tokenText = clang_getTokenSpelling(translationUnit, token).getString();
+            final String tokenText2 = tokenRange.getText();
+
+            check(
+                    tokenText.equals(tokenText2),
+                    () -> format("%s != %s", tokenText, tokenText2)
+            );
+
+            System.out.printf("\t%s: %s, %d char(s): %s%n", tokenRange, tokenKind, tokenText.length(), tokenText);
+        }
+    }
+
     private static void showSpelling(final @NonNull CXCursor cursor) {
         final String cursorText = clang_getCursorSpelling(cursor).getString();
-        System.out.printf("Text: %s%n", cursorText);
+        if (!cursorText.isEmpty()) {
+            System.out.printf("Text: %s%n", cursorText);
+        }
 
-        try (final SourceRange range = new SourceRange(clang_getCursorExtent(cursor))) {
+        try (final SourceRange range = new SourceRange(cursor)) {
             final String cursorText2 = range.getText();
             System.out.printf("Text: %s%n", cursorText2);
         }

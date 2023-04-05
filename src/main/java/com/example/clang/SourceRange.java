@@ -1,5 +1,6 @@
 package com.example.clang;
 
+import org.bytedeco.llvm.clang.CXCursor;
 import org.bytedeco.llvm.clang.CXSourceRange;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
@@ -16,12 +17,17 @@ import static java.lang.String.format;
 import static java.nio.channels.FileChannel.MapMode.READ_ONLY;
 import static java.nio.charset.Charset.defaultCharset;
 import static java.nio.file.StandardOpenOption.READ;
+import static org.bytedeco.llvm.global.clang.clang_getCursorExtent;
 import static org.bytedeco.llvm.global.clang.clang_getRangeEnd;
 import static org.bytedeco.llvm.global.clang.clang_getRangeStart;
 
 public final class SourceRange extends ClangAutoCloseable<CXSourceRange> {
     public SourceRange(final @NonNull CXSourceRange range) {
         super(range);
+    }
+
+    public SourceRange(final @NonNull CXCursor cursor) {
+        this(clang_getCursorExtent(cursor));
     }
 
     /**

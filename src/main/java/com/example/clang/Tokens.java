@@ -3,6 +3,7 @@ package com.example.clang;
 import kotlin.Pair;
 import kotlin.Triple;
 import org.bytedeco.javacpp.annotation.ByVal;
+import org.bytedeco.llvm.clang.CXCursor;
 import org.bytedeco.llvm.clang.CXFile;
 import org.bytedeco.llvm.clang.CXSourceLocation;
 import org.bytedeco.llvm.clang.CXSourceRange;
@@ -19,9 +20,11 @@ import java.util.function.Consumer;
 
 import static java.lang.String.format;
 import static java.nio.file.Files.size;
+import static org.bytedeco.llvm.global.clang.clang_Cursor_getTranslationUnit;
 import static org.bytedeco.llvm.global.clang.clang_Range_isNull;
 import static org.bytedeco.llvm.global.clang.clang_disposeTokens;
 import static org.bytedeco.llvm.global.clang.clang_equalLocations;
+import static org.bytedeco.llvm.global.clang.clang_getCursorExtent;
 import static org.bytedeco.llvm.global.clang.clang_getFile;
 import static org.bytedeco.llvm.global.clang.clang_getLocationForOffset;
 import static org.bytedeco.llvm.global.clang.clang_getNullLocation;
@@ -32,6 +35,14 @@ public final class Tokens extends ClangAutoCloseable<CXToken> {
     private final @NonNull CXTranslationUnit translationUnit;
 
     private final int tokenCount;
+
+    public Tokens(final @NonNull CXCursor cursor) {
+        this(
+                clang_Cursor_getTranslationUnit(cursor),
+                clang_getCursorExtent(cursor),
+                true
+        );
+    }
 
     /**
      * @throws IOException if it's impossible to calculate the source range for
@@ -52,11 +63,30 @@ public final class Tokens extends ClangAutoCloseable<CXToken> {
             final @NonNull CXTranslationUnit translationUnit,
             final @NonNull CXSourceRange range
     ) {
+        this(translationUnit, range, false);
+    }
+
+    private Tokens(
+            final @NonNull CXTranslationUnit translationUnit,
+            final @NonNull CXSourceRange range,
+            final boolean disposeArguments
+    ) {
         super(new CXToken());
         this.translationUnit = translationUnit;
         final int tokenCount[] = new int[1];
         clang_tokenize(translationUnit, range, resource, tokenCount);
         this.tokenCount = tokenCount[0];
+
+        if (disposeArguments) {
+            /*
+             * We don't register translationUnit for disposal here,
+             * as it's the top-most translation unit
+             * (and its lifetime is longer than that of this list of tokens):
+             * `clang_Cursor_getTranslationUnit()`
+             * doesn't create a new instance.
+             */
+            addChildResource(new SourceRange(range));
+        }
     }
 
     /**
