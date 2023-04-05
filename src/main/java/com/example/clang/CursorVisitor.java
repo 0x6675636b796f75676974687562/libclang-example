@@ -1,5 +1,6 @@
 package com.example.clang;
 
+import kotlin.jvm.functions.Function4;
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.llvm.clang.CXClientData;
 import org.bytedeco.llvm.clang.CXCursor;
@@ -88,7 +89,7 @@ public interface CursorVisitor {
             public int call(
                     final @NonNull CXCursor cursor,
                     final @NonNull CXCursor parent,
-                    @NonNull final CXClientData clientData
+                    final @NonNull CXClientData clientData
             ) {
                 final int depth = clientData.asByteBuffer().getInt();
 
@@ -97,6 +98,21 @@ public interface CursorVisitor {
                         parent,
                         depth
                 ).ordinal();
+            }
+        };
+    }
+
+    static @NonNull CursorVisitor from(
+            final @NonNull Function4<@NonNull CursorVisitor, @NonNull CXCursor, @NonNull CXCursor, @NonNull Integer, @NonNull ChildVisitResult> block
+    ) {
+        return new CursorVisitor() {
+            @Override
+            public @NonNull ChildVisitResult call(
+                    @NonNull final CXCursor cursor,
+                    @NonNull final CXCursor parent,
+                    final int depth
+            ) {
+                return block.invoke(this, cursor, parent, depth);
             }
         };
     }
