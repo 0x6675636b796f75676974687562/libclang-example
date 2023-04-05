@@ -108,8 +108,8 @@ public interface CursorVisitor {
         return new CursorVisitor() {
             @Override
             public @NonNull ChildVisitResult call(
-                    @NonNull final CXCursor cursor,
-                    @NonNull final CXCursor parent,
+                    final @NonNull CXCursor cursor,
+                    final @NonNull CXCursor parent,
                     final int depth
             ) {
                 return block.invoke(this, cursor, parent, depth);

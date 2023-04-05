@@ -95,7 +95,7 @@ public final class Tokens extends ClangAutoCloseable<CXToken> {
      * @throws ConcurrentModificationException if two or more threads are
      *   concurrently invoking this method.
      */
-    public void forEach(final @NonNull Consumer<@NonNull Pair<@NonNull CXTranslationUnit, @NonNull CXToken>> action) {
+    public void forEach(final @NonNull Consumer<? super @NonNull Pair<@NonNull CXTranslationUnit, @NonNull CXToken>> action) {
         forEachIndexed(triple -> action.accept(new Pair<>(triple.getSecond(), triple.getThird())));
     }
 
@@ -105,7 +105,7 @@ public final class Tokens extends ClangAutoCloseable<CXToken> {
      * @throws ConcurrentModificationException if two or more threads are
      *   concurrently invoking this method.
      */
-    public void forEachIndexed(final @NonNull Consumer<@NonNull Triple<@NonNull Integer, @NonNull CXTranslationUnit, @NonNull CXToken>> action) {
+    public void forEachIndexed(final @NonNull Consumer<? super @NonNull Triple<@NonNull Integer, @NonNull CXTranslationUnit, @NonNull CXToken>> action) {
         if (isClosed()) {
             throw new IllegalStateException("Already closed");
         }

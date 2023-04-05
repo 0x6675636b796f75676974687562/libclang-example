@@ -9,6 +9,7 @@ import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.clang.CXCursor;
 import org.bytedeco.llvm.clang.CXFile;
 import org.bytedeco.llvm.clang.CXIndex;
+import org.bytedeco.llvm.clang.CXString;
 import org.bytedeco.llvm.clang.CXToken;
 import org.bytedeco.llvm.clang.CXTranslationUnit;
 import org.bytedeco.llvm.clang.CXType;
@@ -20,6 +21,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.stream.Stream;
 
 import static com.example.clang.ChildVisitResult.BREAK;
 import static com.example.clang.ChildVisitResult.CONTINUE;
@@ -72,9 +74,9 @@ import static org.bytedeco.llvm.global.clang.clang_isUnexposed;
 import static org.bytedeco.llvm.global.clang.clang_parseTranslationUnit2;
 
 /**
- * https://github.com/sabottenda/libclang-sample/blob/master/AST/ASTVisitor.cc
+ * @see <a href="https://github.com/sabottenda/libclang-sample/blob/master/AST/ASTVisitor.cc">ASTVisitor.cc</a>
  */
-public class AstVisitor {
+public final class AstVisitor {
 	private AstVisitor() {
 		assert false;
 	}
@@ -87,29 +89,28 @@ public class AstVisitor {
 		}
 		final Path file = Paths.get(resourceOrNull.toURI());
 
-		final String[] command_line_args = { };
+		final String[] commandLineArgs = { };
 
 		final CXIndex index = clang_createIndex(1, 0);
 
-		final int num_unsaved_files = 0;
-		final CXUnsavedFile unsaved_files = new CXUnsavedFile();
-		final BytePointer source_filename = new BytePointer(file.toString());
-		final PointerPointer<?> command_line_args_ptr = new PointerPointer<>(command_line_args);
+		final int numUnsavedFiles = 0;
+		final CXUnsavedFile unsavedFiles = new CXUnsavedFile();
+		final BytePointer sourceFilename = new BytePointer(file.toString());
+		final PointerPointer<?> commandLineArgsPtr = new PointerPointer<>(commandLineArgs);
 		final CXTranslationUnit translationUnit = new CXTranslationUnit();
 		checkError(
 				clang_parseTranslationUnit2(
 						index,
-						source_filename,
-						command_line_args_ptr,
-						command_line_args.length,
-						unsaved_files,
-						num_unsaved_files,
+						sourceFilename,
+						commandLineArgsPtr,
+						commandLineArgs.length,
+						unsavedFiles,
+						numUnsavedFiles,
 						CXTranslationUnit_None,
 						translationUnit
 				)
 		);
 
-		// traverse the elements
 		final CXCursor rootCursor = clang_getTranslationUnitCursor(translationUnit);
 		CursorVisitor.from((visitor, cursor, parent, depth) -> {
 			try (final SourceLocation location = new SourceLocation(cursor)) {
@@ -145,7 +146,6 @@ public class AstVisitor {
 			}
 		}).visitChildren(rootCursor);
 
-		// dispose all allocated data
 		clang_disposeTranslationUnit(translationUnit);
 		clang_disposeIndex(index);
 	}
@@ -191,9 +191,12 @@ public class AstVisitor {
 		}
 	}
 
-	private static void showType(CXCursor cursor) {
-		CXType type = clang_getCursorType(cursor);
-		final String typeKind = clang_getTypeKindSpelling(type.kind()).getString();
+	private static void showType(final CXCursor cursor) {
+		final CXType type = clang_getCursorType(cursor);
+		final String typeKind;
+		try (final CXString typeKindRaw = clang_getTypeKindSpelling(type.kind())) {
+			typeKind = typeKindRaw.getString();
+		}
 		final String typeName = clang_getTypeSpelling(type).getString();
 		if (typeName.isEmpty()) {
 			System.out.printf("Type: %s%n", typeKind);
@@ -202,27 +205,37 @@ public class AstVisitor {
 		}
 	}
 
-	private static void showLinkage(CXCursor cursor) {
-		int linkage = clang_getCursorLinkage(cursor);
-		String linkageName;
-		switch (linkage) {
-		case CXLinkage_Invalid:        linkageName = "Invalid"; break;
-		case CXLinkage_NoLinkage:      linkageName = "NoLinkage"; break;
-		case CXLinkage_Internal:       linkageName = "Internal"; break;
-		case CXLinkage_UniqueExternal: linkageName = "UniqueExternal"; break;
-		case CXLinkage_External:       linkageName = "External"; break;
-		default:                       		 linkageName = "Unknown"; break;
-		}
-		System.out.printf("Linkage: %s\n", linkageName);
+	private static void showLinkage(final CXCursor cursor) {
+		final int linkage = clang_getCursorLinkage(cursor);
+		final String linkageName = switch (linkage) {
+			case CXLinkage_Invalid -> "Invalid";
+			case CXLinkage_NoLinkage -> "NoLinkage";
+			case CXLinkage_Internal -> "Internal";
+			case CXLinkage_UniqueExternal -> "UniqueExternal";
+			case CXLinkage_External -> "External";
+			default -> "Unknown";
+		};
+		System.out.printf("Linkage: %s%n", linkageName);
 	}
 
-	private static void showParent(CXCursor cursor, CXCursor parent) {
-		CXCursor semaParent = clang_getCursorSemanticParent(cursor);
-		CXCursor lexParent  = clang_getCursorLexicalParent(cursor);
-		System.out.printf("Parent: parent:%s semantic:%s lexicial:%s\n",
-						  clang_getCursorSpelling(parent).getString(),
-						  clang_getCursorSpelling(semaParent).getString(),
-						  clang_getCursorSpelling(lexParent).getString());
+	private static void showParent(final CXCursor cursor, final CXCursor parent) {
+		final CXCursor semaParent = clang_getCursorSemanticParent(cursor);
+		final CXCursor lexParent  = clang_getCursorLexicalParent(cursor);
+		final String parentText = clang_getCursorSpelling(parent).getString();
+		final String semanticParent = clang_getCursorSpelling(semaParent).getString();
+		final String lexicalParent = clang_getCursorSpelling(lexParent).getString();
+		if (Stream.of(parentText, semanticParent, lexicalParent).anyMatch(text -> !text.isEmpty())) {
+			System.out.println("Parent:");
+		}
+		if (!parentText.isEmpty()) {
+			System.out.printf("\tParent: %s%n", parentText);
+		}
+		if (!semanticParent.isEmpty()) {
+			System.out.printf("\tSemantic parent: %s%n", semanticParent);
+		}
+		if (!lexicalParent.isEmpty()) {
+			System.out.printf("\tLexical parent: %s%n", lexicalParent);
+		}
 	}
 
 	private static void showUsr(final @NonNull CXCursor cursor) {
@@ -232,38 +245,53 @@ public class AstVisitor {
 		}
 	}
 
-	private static void showCursorKind(CXCursor cursor) {
-		int curKind  = clang_getCursorKind(cursor);
+	private static void showCursorKind(final CXCursor cursor) {
+		final int curKind  = clang_getCursorKind(cursor);
 
-		String type;
-		if (clang_isAttribute(curKind) == 1) type = "Attribute";
-		else if (clang_isDeclaration(curKind) == 1) type = "Declaration";
-		else if (clang_isExpression(curKind) == 1) type = "Expression";
-		else if (clang_isInvalid(curKind) == 1) type = "Invalid";
-		else if (clang_isPreprocessing(curKind) == 1) type = "Preprocessing";
-		else if (clang_isReference(curKind) == 1) type = "Reference";
-		else if (clang_isStatement(curKind) == 1) type = "Statement";
-		else if (clang_isTranslationUnit(curKind) == 1) type = "TranslationUnit";
-		else if (clang_isUnexposed(curKind) == 1) type = "Unexposed";
-		else                               					  type = "Unknown";
+		final String type;
+		if (clang_isAttribute(curKind) == 1) {
+			type = "Attribute";
+		} else if (clang_isDeclaration(curKind) == 1) {
+			type = "Declaration";
+		} else if (clang_isExpression(curKind) == 1) {
+			type = "Expression";
+		} else if (clang_isInvalid(curKind) == 1) {
+			type = "Invalid";
+		} else if (clang_isPreprocessing(curKind) == 1) {
+			type = "Preprocessing";
+		} else if (clang_isReference(curKind) == 1) {
+			type = "Reference";
+		} else if (clang_isStatement(curKind) == 1) {
+			type = "Statement";
+		} else if (clang_isTranslationUnit(curKind) == 1) {
+			type = "TranslationUnit";
+		} else if (clang_isUnexposed(curKind) == 1) {
+			type = "Unexposed";
+		} else {
+			type = "Unknown";
+		}
 
-		System.out.printf(
-				"Cursor: %s/%s%n",
-				type,
-				clang_getCursorKindSpelling(curKind).getString()
-		);
+		try (final CXString cursorKindSpelling = clang_getCursorKindSpelling(curKind)) {
+			System.out.printf(
+					"Cursor: %s/%s%n",
+					type,
+					cursorKindSpelling.getString()
+			);
+		}
 	}
 
-	private static void showIncludedFile(CXCursor cursor) {
+	private static void showIncludedFile(final CXCursor cursor) {
 		final @Nullable CXFile included = clang_getIncludedFile(cursor);
-		if (included == null) return;
-		System.out.printf(" included file: %s\n", clang_getFileName(included).getString());
+		if (included == null) {
+			return;
+		}
+		System.out.printf(" included file: %s%n", clang_getFileName(included).getString());
 	}
 
 	/**
 	 * Check for errors of the compilation process.
 	 */
-	protected static void checkError(final int errorCode) {
+	private static void checkError(final int errorCode) {
 		if (errorCode != CXError_Success) {
 			switch (errorCode) {
 			case CXError_InvalidArguments -> throw new RuntimeException("InvalidArguments");
