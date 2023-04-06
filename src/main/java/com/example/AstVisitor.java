@@ -112,7 +112,7 @@ public final class AstVisitor {
 		);
 
 		final CXCursor rootCursor = clang_getTranslationUnitCursor(translationUnit);
-		CursorVisitor.<Integer>from((visitor, cursor, parent, depth) -> {
+		CursorVisitor.<Node>from((visitor, cursor, parentCursor, parentNode) -> {
 			try (final SourceLocation location = new SourceLocation(cursor)) {
 				if (!location.isFromMainFile()) {
 					/*
@@ -121,30 +121,31 @@ public final class AstVisitor {
 					return CONTINUE;
 				}
 
-				System.out.printf("%s: depth = %d%n", location, depth);
+				System.out.printf("%s: %s%n", location, parentNode);
 
 				showCursorKind(cursor);
-				showType(cursor);
+				final String cursorType = getType(cursor);
+				System.out.println("Type: " + cursorType);
 				try (final Tokens tokens = new Tokens(cursor)) {
 					tokens.forEach(pair -> showToken(pair.getFirst(), pair.getSecond()));
 				}
 				showSpelling(cursor);
 				showUsr(cursor);
 				showLinkage(cursor);
-				showParent(cursor, parent);
+				showParent(cursor, parentCursor);
 				showIncludedFile(cursor);
 				System.out.println();
 
 				/*
 				 * Returning `RECURSE` here will have exactly the same effect as
 				 * calling `visitChildren`
-				 * (except for `depth` not being incremented).
+				 * (except for client data not being updated).
 				 */
-				return visitor.visitChildren(cursor, depth + 1)
+				return visitor.visitChildren(cursor, parentNode.newChild(cursorType))
 					   ? BREAK
 					   : CONTINUE;
 			}
-		}).visitChildren(rootCursor, 0);
+		}).visitChildren(rootCursor, new Node("root"));
 
 		clang_disposeTranslationUnit(translationUnit);
 		clang_disposeIndex(index);
@@ -191,18 +192,16 @@ public final class AstVisitor {
 		}
 	}
 
-	private static void showType(final CXCursor cursor) {
+	private static @NonNull String getType(final CXCursor cursor) {
 		final CXType type = clang_getCursorType(cursor);
 		final String typeKind;
 		try (final CXString typeKindRaw = clang_getTypeKindSpelling(type.kind())) {
 			typeKind = typeKindRaw.getString();
 		}
 		final String typeName = clang_getTypeSpelling(type).getString();
-		if (typeName.isEmpty()) {
-			System.out.printf("Type: %s%n", typeKind);
-		} else {
-			System.out.printf("Type: %s/%s%n", typeKind, typeName);
-		}
+		return typeName.isEmpty()
+			   ? typeKind
+			   : format("%s/%s", typeKind, typeName);
 	}
 
 	private static void showLinkage(final CXCursor cursor) {
