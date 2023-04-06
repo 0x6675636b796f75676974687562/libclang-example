@@ -1,16 +1,28 @@
 package com.example.clang;
 
 import kotlin.jvm.functions.Function4;
-import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.llvm.clang.CXClientData;
 import org.bytedeco.llvm.clang.CXCursor;
 import org.bytedeco.llvm.clang.CXCursorVisitor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+
+import static java.nio.ByteOrder.BIG_ENDIAN;
+import static java.util.Objects.requireNonNull;
 import static org.bytedeco.llvm.global.clang.clang_visitChildren;
 
 @FunctionalInterface
-public interface CursorVisitor {
+public interface CursorVisitor<T extends Serializable> {
     /**
      * Invoked for each cursor found during traversal.
      *
@@ -20,7 +32,7 @@ public interface CursorVisitor {
      *
      * @param cursor the cursor being visited.
      * @param parent the parent visitor for that cursor.
-     * @param depth the client data provided to {@code clang_visitCursorChildren()}.
+     * @param clientData the client data provided to {@code clang_visitCursorChildren()}.
      * @return one of the {@link ChildVisitResult} values to direct
      *   {@code clang_visitCursorChildren()}.
      * @see CXCursorVisitor#call(CXCursor, CXCursor, CXClientData)
@@ -28,7 +40,7 @@ public interface CursorVisitor {
     @NonNull ChildVisitResult call(
             final @NonNull CXCursor cursor,
             final @NonNull CXCursor parent,
-            final int depth
+            final @NonNull T clientData
     );
 
     /**
@@ -45,40 +57,17 @@ public interface CursorVisitor {
      * @param parent the cursor whose child may be visited. All kinds of cursors
      *               can be visited, including invalid cursors (which, by
      *               definition, have no children).
+     * @param clientData the client data provided to {@code clang_visitCursorChildren()}.
      * @return {@code true} if the traversal was terminated prematurely by the
      *   visitor returning {@link ChildVisitResult#BREAK}.
-     * @see #visitChildren(CXCursor, int)
-     */
-    default boolean visitChildren(final @NonNull CXCursor parent) {
-        return visitChildren(parent, 0);
-    }
-
-    /**
-     * Visits the children of a particular cursor.
-     *
-     * <p>
-     * This function visits all the direct children of the given cursor,
-     * invoking the given visitor function with the cursors of each
-     * visited child. The traversal may be recursive, if the visitor returns
-     * {@link ChildVisitResult#RECURSE}. The traversal may also be ended
-     * prematurely, if the visitor returns {@link ChildVisitResult#BREAK}.
-     * </p>
-     *
-     * @param parent the cursor whose child may be visited. All kinds of cursors
-     *               can be visited, including invalid cursors (which, by
-     *               definition, have no children).
-     * @param depth the depth from the root of the AST.
-     * @return {@code true} if the traversal was terminated prematurely by the
-     *   visitor returning {@link ChildVisitResult#BREAK}.
-     * @see #visitChildren(CXCursor)
      */
     default boolean visitChildren(
             final @NonNull CXCursor parent,
-            final int depth
+            final @NonNull T clientData
     ) {
         try (final CXCursorVisitor visitor = asCxCursorVisitor()) {
-            try (final CXClientData clientData = new CXClientData(new IntPointer(new int[] {depth}))) {
-                return clang_visitChildren(parent, visitor, clientData) != 0;
+            try (final CXClientData rawClientData = toClientData(clientData)) {
+                return clang_visitChildren(parent, visitor, rawClientData) != 0;
             }
         }
     }
@@ -91,29 +80,110 @@ public interface CursorVisitor {
                     final @NonNull CXCursor parent,
                     final @NonNull CXClientData clientData
             ) {
-                final int depth = clientData.asByteBuffer().getInt();
-
                 return CursorVisitor.this.call(
                         cursor,
                         parent,
-                        depth
+                        fromClientData(clientData)
                 ).ordinal();
             }
         };
     }
 
-    static @NonNull CursorVisitor from(
-            final @NonNull Function4<@NonNull CursorVisitor, @NonNull CXCursor, @NonNull CXCursor, @NonNull Integer, @NonNull ChildVisitResult> block
+    static <T extends @NonNull Serializable> @NonNull CursorVisitor<T> from(
+            final @NonNull Function4<? super @NonNull CursorVisitor<T>, ? super @NonNull CXCursor, ? super @NonNull CXCursor, ? super @NonNull T, @NonNull ChildVisitResult> block
     ) {
-        return new CursorVisitor() {
+        return new CursorVisitor<>() {
             @Override
             public @NonNull ChildVisitResult call(
                     final @NonNull CXCursor cursor,
                     final @NonNull CXCursor parent,
-                    final int depth
+                    final T clientData
             ) {
-                return block.invoke(this, cursor, parent, depth);
+                return block.invoke(this, cursor, parent, clientData);
             }
         };
+    }
+
+    /**
+     * Writes {@code obj} to a byte buffer.
+     * The first 4 bytes in the buffer will hold the length of the data section.
+     * This is necessary, because type information (such as length) can't pass
+     * through a native stack frame,
+     * and all we get on the JVM side by default is a byte array pointer
+     * (8 bytes on a 64-bit JVM, 4 bytes on a 32-bit JVM) without any length
+     * information.
+     *
+     * @param obj the object to write to a byte buffer.
+     * @return the byte buffer, which contains the length information as its 4
+     *   bytes, followed by the serialized object.
+     */
+    private static @NonNull ByteBuffer toByteBuffer(final @NonNull Serializable obj) {
+        final ByteArrayOutputStream arrayOut = new ByteArrayOutputStream();
+
+        try (final ObjectOutput out = new ObjectOutputStream(arrayOut)) {
+            out.writeObject(obj);
+        } catch (final IOException ioe) {
+            throw new UncheckedIOException(ioe);
+        }
+
+        final byte bytes[] = arrayOut.toByteArray();
+
+        /*
+         * The order is big-endian by default.
+         */
+        final ByteBuffer buffer = ByteBuffer.allocate(bytes.length + 4);
+        buffer.putInt(bytes.length);
+        buffer.put(bytes);
+        return buffer;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Serializable> @NonNull T fromByteBuffer(final @NonNull ByteBuffer data) {
+        try (final ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(asArray(data)))) {
+            return requireNonNull((T) in.readObject());
+        } catch (final IOException ioe) {
+            throw new UncheckedIOException(ioe);
+        } catch (final ClassNotFoundException cnfe) {
+            throw (NoClassDefFoundError) new NoClassDefFoundError(cnfe.getMessage()).initCause(cnfe);
+        }
+    }
+
+    private static byte @NonNull[] asArray(final @NonNull ByteBuffer data) {
+        if (data.hasArray()) {
+            return data.array();
+        }
+
+        data.rewind();
+        final byte bytes[] = new byte[data.remaining()];
+        data.get(bytes);
+        return bytes;
+    }
+
+    private static @NonNull CXClientData toClientData(final @NonNull Serializable obj) {
+        return new CXClientData(new BytePointer(toByteBuffer(obj)));
+    }
+
+    private static <T extends @NonNull Serializable> @NonNull T fromClientData(final @NonNull CXClientData clientData) {
+        /*
+         * The size of JVM `int`, in bytes.
+         */
+        final int offset = 4;
+
+        final BytePointer dataPointer = new BytePointer(clientData);
+
+        /*
+         * On x86, the byte-order of the direct buffer passed from the native
+         * stack frame will be little-endian by default.
+         *
+         * A call to `Pointer.capacity()` will set both the capacity and the limit.
+         */
+        dataPointer.capacity(offset);
+        final int length = dataPointer.asByteBuffer().order(BIG_ENDIAN).getInt();
+
+        /*
+         * Will set both the capacity and the limit.
+         */
+        dataPointer.capacity(offset + length);
+        return fromByteBuffer(dataPointer.asByteBuffer().order(BIG_ENDIAN).slice(offset, length));
     }
 }

@@ -112,7 +112,7 @@ public final class AstVisitor {
 		);
 
 		final CXCursor rootCursor = clang_getTranslationUnitCursor(translationUnit);
-		CursorVisitor.from((visitor, cursor, parent, depth) -> {
+		CursorVisitor.<Integer>from((visitor, cursor, parent, depth) -> {
 			try (final SourceLocation location = new SourceLocation(cursor)) {
 				if (!location.isFromMainFile()) {
 					/*
@@ -144,7 +144,7 @@ public final class AstVisitor {
 					   ? BREAK
 					   : CONTINUE;
 			}
-		}).visitChildren(rootCursor);
+		}).visitChildren(rootCursor, 0);
 
 		clang_disposeTranslationUnit(translationUnit);
 		clang_disposeIndex(index);
