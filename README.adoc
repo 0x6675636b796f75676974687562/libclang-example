@@ -1,0 +1,8 @@
+= Sample code showing how `libclang` can be used to parse C++
+:toc:
+
+[.float-group]
+--
+[.left]
+image::https://img.shields.io/badge/License-MIT-yellow.svg[License: MIT,link="https://opensource.org/licenses/MIT"]
+--
