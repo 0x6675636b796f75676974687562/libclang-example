@@ -82,7 +82,7 @@ public final class AstVisitor {
 	}
 
 	public static void main(final String[] args) throws URISyntaxException {
-		final URL resourceOrNull = AstVisitor.class.getResource("array-subscript.c" /*"sample1.cc"*/);
+		final URL resourceOrNull = AstVisitor.class.getResource("array-subscript.c");
 		if (resourceOrNull == null) {
 			System.out.println("File doesn't exist");
 			return;
