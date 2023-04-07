@@ -17,6 +17,13 @@ dependencies {
     implementation("org.bytedeco:mkl-platform:2022.2-1.5.8")
     implementation("org.bytedeco:mkl-platform-redist:2022.2-1.5.8")
     implementation("org.checkerframework:checker-qual:3.33.0")
+
+    /*
+     * "2.13" here is the Scala version.
+     * Alternative implementations exist with the "_3" suffix.
+     */
+    implementation("io.shiftleft:overflowdb-traversal_2.13:1.171")
+    implementation("io.shiftleft:overflowdb-formats_2.13:1.171")
 }
 
 internal val compileKotlin: KotlinCompile by tasks
