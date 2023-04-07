@@ -10,7 +10,7 @@ import java.util.Objects;
 import static java.lang.String.format;
 import static java.util.Objects.hash;
 
-public final class Node implements Serializable {
+public final class AstNode implements Serializable {
     @Serial
     private static final long serialVersionUID = -8947112108914209515L;
 
@@ -18,16 +18,16 @@ public final class Node implements Serializable {
 
     private final int depth;
 
-    private final @Nullable Node parent;
+    private final @Nullable AstNode parent;
 
-    public Node(final @NonNull String name) {
+    public AstNode(final @NonNull String name) {
         this(name, 0, null);
     }
 
-    public Node(
+    public AstNode(
             final @NonNull String name,
             final int depth,
-            final @Nullable Node parent) {
+            final @Nullable AstNode parent) {
         this.name = name;
         this.depth = depth;
         this.parent = parent;
@@ -41,18 +41,18 @@ public final class Node implements Serializable {
         return depth;
     }
 
-    public @Nullable Node getParent() {
+    public @Nullable AstNode getParent() {
         return parent;
     }
 
-    public @NonNull Node newChild(final @NonNull String childName) {
-        return new Node(childName, depth + 1, this);
+    public @NonNull AstNode newChild(final @NonNull String childName) {
+        return new AstNode(childName, depth + 1, this);
     }
 
     @Override
     public boolean equals(final @Nullable Object obj) {
         return this == obj
-               || obj instanceof final Node that
+               || obj instanceof final AstNode that
                   && depth == that.depth
                   && name.equals(that.name)
                   && Objects.equals(parent, that.parent);
