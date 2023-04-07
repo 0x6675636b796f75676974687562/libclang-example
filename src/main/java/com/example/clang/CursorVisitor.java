@@ -89,6 +89,35 @@ public interface CursorVisitor<T extends Serializable> {
         };
     }
 
+    /**
+     * Creates a new <em>stateless</em> visitor from a lambda.
+     *
+     * <p>
+     * It will be possible to pass data to child invocations
+     * (so that child AST nodes may see their parents), but not vice versa:
+     * the data passed across a native stack frame will be serialized and
+     * de-serialized, so any state changes will be lost when a child invocation
+     * returns. The only workaround is to use a custom {@code readResolve()}
+     * method when de-serializing data.
+     * </p>
+     *
+     * <p>
+     * Alternatively, you can create a <em>stateful</em> visitor by subclassing
+     * {@code CursorVisitor}.
+     * </p>
+     *
+     * @param block the lambda which constitutes the visitor body.
+     * @return the new stateless visitor.
+     * @param <T> the type of data (e.g.: such as recursion depth) to pass to
+     *           child invocations of this visitor.
+     *           Only makes sense if the visitor manually invokes
+     *           {@link #visitChildren(CXCursor, Serializable)}
+     *           and returns {@link ChildVisitResult#CONTINUE} rather than
+     *           {@link ChildVisitResult#RECURSE}.
+     * @see #visitChildren(CXCursor, Serializable)
+     * @see ChildVisitResult#CONTINUE
+     * @see ChildVisitResult#RECURSE
+     */
     static <T extends @NonNull Serializable> @NonNull CursorVisitor<T> from(
             final @NonNull Function4<? super @NonNull CursorVisitor<T>, ? super @NonNull CXCursor, ? super @NonNull CXCursor, ? super @NonNull T, @NonNull ChildVisitResult> block
     ) {
