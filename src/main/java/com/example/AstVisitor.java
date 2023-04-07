@@ -7,6 +7,9 @@ import com.example.clang.Tokens;
 import org.bytedeco.llvm.clang.CXCursor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+import java.util.Objects;
+import java.util.function.Supplier;
+
 import static com.example.AstVisitorUtils.getType;
 import static com.example.AstVisitorUtils.showCursorKind;
 import static com.example.AstVisitorUtils.showIncludedFile;
@@ -17,8 +20,28 @@ import static com.example.AstVisitorUtils.showToken;
 import static com.example.AstVisitorUtils.showUsr;
 import static com.example.clang.ChildVisitResult.BREAK;
 import static com.example.clang.ChildVisitResult.CONTINUE;
+import static com.example.clang.Utils.check;
+import static java.lang.String.format;
 
-public final class AstVisitor implements CursorVisitor<AstNode> {
+public final class AstVisitor implements CursorVisitor<AstNode>, ParentNodeAware {
+    /**
+     * The mutable state of this <em>stateful</em> visitor,
+     * changed for each child invocation.
+     *
+     * @see #withNewParent(AstNode, Supplier)
+     */
+    private @NonNull AstNode parentNode;
+
+    public AstVisitor(final @NonNull AstNode parentNode) {
+        this.parentNode = parentNode;
+    }
+
+    /**
+     * @param parentAstNode the same as {@link #parentNode},
+     *                      but passed across native stack frames as a parameter
+     *                      rather than a mutable visitor state.
+     * @see #parentNode
+     */
     @Override
     public @NonNull ChildVisitResult call(
             final @NonNull CXCursor cursor,
@@ -33,7 +56,24 @@ public final class AstVisitor implements CursorVisitor<AstNode> {
                 return CONTINUE;
             }
 
-            System.out.printf("%s: depth = %d%n", location, parentAstNode.getDepth() + 1);
+            /*
+             * Make sure that serialized data is passed correctly across a
+             * native stack frame.
+             */
+            check(
+                    parentNode.getName().equals(parentAstNode.getName()),
+                    () -> format("%s != %s", parentNode.getName(), parentAstNode.getName())
+            );
+            check(
+                    parentNode.getDepth() == parentAstNode.getDepth(),
+                    () -> format("%d != %d", parentNode.getDepth(), parentAstNode.getDepth())
+            );
+            check(
+                    Objects.equals(parentNode.getParent(), parentAstNode.getParent()),
+                    () -> format("%s != %s", parentNode.getParent(), parentAstNode.getParent())
+            );
+
+            System.out.printf("%s: depth = %d%n", location, parentNode.getDepth() + 1);
 
             showCursorKind(cursor);
             final String cursorType = getType(cursor);
@@ -53,9 +93,20 @@ public final class AstVisitor implements CursorVisitor<AstNode> {
              * calling `visitChildren`
              * (except for client data not being updated).
              */
-            return visitChildren(cursor, parentAstNode.newChild(cursorType))
+            final AstNode newParent = parentNode.newChild(cursorType);
+            return withNewParent(newParent, () -> visitChildren(cursor, newParent))
                    ? BREAK
                    : CONTINUE;
         }
+    }
+
+    @Override
+    public @NonNull AstNode getParentNode() {
+        return parentNode;
+    }
+
+    @Override
+    public void setParentNode(final @NonNull AstNode parentNode) {
+        this.parentNode = parentNode;
     }
 }

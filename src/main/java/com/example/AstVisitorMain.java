@@ -65,7 +65,8 @@ public final class AstVisitorMain {
 		);
 
 		final CXCursor rootCursor = clang_getTranslationUnitCursor(translationUnit);
-		new AstVisitor().visitChildren(rootCursor, new AstNode(file.getFileName().toString()));
+		final AstNode rootAstNode = new AstNode(file.getFileName().toString());
+		new AstVisitor(rootAstNode).visitChildren(rootCursor, rootAstNode);
 
 		clang_disposeTranslationUnit(translationUnit);
 		clang_disposeIndex(index);
