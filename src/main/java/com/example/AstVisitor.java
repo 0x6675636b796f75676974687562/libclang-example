@@ -7,7 +7,6 @@ import com.example.clang.Tokens;
 import org.bytedeco.llvm.clang.CXCursor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
-import java.util.Objects;
 import java.util.function.Supplier;
 
 import static com.example.AstVisitorUtils.getType;
@@ -67,10 +66,6 @@ public final class AstVisitor implements CursorVisitor<AstNode>, ParentNodeAware
             check(
                     parentNode.getDepth() == parentAstNode.getDepth(),
                     () -> format("%d != %d", parentNode.getDepth(), parentAstNode.getDepth())
-            );
-            check(
-                    Objects.equals(parentNode.getParent(), parentAstNode.getParent()),
-                    () -> format("%s != %s", parentNode.getParent(), parentAstNode.getParent())
             );
 
             System.out.printf("%s: depth = %d%n", location, parentNode.getDepth() + 1);

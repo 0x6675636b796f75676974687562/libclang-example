@@ -5,9 +5,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
 
 import static java.lang.String.format;
+import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.hash;
 
 public final class AstNode implements Serializable {
@@ -18,19 +20,17 @@ public final class AstNode implements Serializable {
 
     private final int depth;
 
-    private final @Nullable AstNode parent;
+    private final @NonNull List<@NonNull AstNode> children = new ArrayList<>();
 
     public AstNode(final @NonNull String name) {
-        this(name, 0, null);
+        this(name, 0);
     }
 
-    public AstNode(
+    private AstNode(
             final @NonNull String name,
-            final int depth,
-            final @Nullable AstNode parent) {
+            final int depth) {
         this.name = name;
         this.depth = depth;
-        this.parent = parent;
     }
 
     public @NonNull String getName() {
@@ -41,12 +41,14 @@ public final class AstNode implements Serializable {
         return depth;
     }
 
-    public @Nullable AstNode getParent() {
-        return parent;
+    public @NonNull List<@NonNull AstNode> getChildren() {
+        return unmodifiableList(children);
     }
 
     public @NonNull AstNode newChild(final @NonNull String childName) {
-        return new AstNode(childName, depth + 1, this);
+        final AstNode child = new AstNode(childName, depth + 1);
+        children.add(child);
+        return child;
     }
 
     @Override
@@ -55,16 +57,16 @@ public final class AstNode implements Serializable {
                || obj instanceof final AstNode that
                   && depth == that.depth
                   && name.equals(that.name)
-                  && Objects.equals(parent, that.parent);
+                  && children.equals(that.children);
     }
 
     @Override
     public int hashCode() {
-        return hash(name, depth, parent);
+        return hash(name, depth, children);
     }
 
     @Override
     public String toString() {
-        return format("{depth: %d, name: \"%s\", parent: %s}", depth, name, parent);
+        return format("{depth: %d, name: \"%s\"}", depth, name);
     }
 }
