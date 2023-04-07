@@ -76,13 +76,13 @@ import static org.bytedeco.llvm.global.clang.clang_parseTranslationUnit2;
 /**
  * @see <a href="https://github.com/sabottenda/libclang-sample/blob/master/AST/ASTVisitor.cc">ASTVisitor.cc</a>
  */
-public final class AstVisitor {
-	private AstVisitor() {
+public final class AstVisitorMain {
+	private AstVisitorMain() {
 		assert false;
 	}
 
 	public static void main(final String[] args) throws URISyntaxException {
-		final URL resourceOrNull = AstVisitor.class.getResource("array-subscript.c");
+		final URL resourceOrNull = AstVisitorMain.class.getResource("array-subscript.c");
 		if (resourceOrNull == null) {
 			System.out.println("File doesn't exist");
 			return;
