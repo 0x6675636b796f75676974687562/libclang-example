@@ -81,8 +81,13 @@ public final class AstVisitorMain {
 		assert false;
 	}
 
-	public static void main(final String[] args) throws URISyntaxException {
-		final URL resourceOrNull = AstVisitorMain.class.getResource("array-subscript.c");
+	public static void main(final @NonNull String args @NonNull[]) throws URISyntaxException {
+		if (args.length != 1) {
+			System.err.printf("Usage: %s [FILE]%n", AstVisitorMain.class.getName());
+			return;
+		}
+
+		final URL resourceOrNull = AstVisitorMain.class.getResource(args[0]);
 		if (resourceOrNull == null) {
 			System.out.println("File doesn't exist");
 			return;
