@@ -70,7 +70,8 @@ public final class AstVisitorUtils {
         };
     }
 
-    public static void showToken(
+    public static void addToken(
+            final @NonNull AstNode parentNode,
             final @NonNull CXTranslationUnit translationUnit,
             final @NonNull CXToken token
     ) {
@@ -84,7 +85,7 @@ public final class AstVisitorUtils {
                     () -> format("%s != %s", tokenText, tokenText2)
             );
 
-            System.out.printf("\t%s: %s, %d char(s): %s%n", tokenRange, tokenKind, tokenText.length(), tokenText);
+            parentNode.addChild(tokenText, tokenRange, new TokenKind(tokenKind));
         }
     }
 

@@ -9,13 +9,13 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.util.function.Supplier;
 
+import static com.example.AstVisitorUtils.addToken;
 import static com.example.AstVisitorUtils.getType;
 import static com.example.AstVisitorUtils.showCursorKind;
 import static com.example.AstVisitorUtils.showIncludedFile;
 import static com.example.AstVisitorUtils.showLinkage;
 import static com.example.AstVisitorUtils.showParent;
 import static com.example.AstVisitorUtils.showSpelling;
-import static com.example.AstVisitorUtils.showToken;
 import static com.example.AstVisitorUtils.showUsr;
 import static com.example.clang.ChildVisitResult.BREAK;
 import static com.example.clang.ChildVisitResult.CONTINUE;
@@ -60,8 +60,8 @@ public final class AstVisitor implements CursorVisitor<AstNode>, ParentNodeAware
              * native stack frame.
              */
             check(
-                    parentNode.getName().equals(parentAstNode.getName()),
-                    () -> format("%s != %s", parentNode.getName(), parentAstNode.getName())
+                    parentNode.getText().equals(parentAstNode.getText()),
+                    () -> format("%s != %s", parentNode.getText(), parentAstNode.getText())
             );
             check(
                     parentNode.getDepth() == parentAstNode.getDepth(),
@@ -73,9 +73,6 @@ public final class AstVisitor implements CursorVisitor<AstNode>, ParentNodeAware
             showCursorKind(cursor);
             final String cursorType = getType(cursor);
             System.out.println("Type: " + cursorType);
-            try (final Tokens tokens = new Tokens(cursor)) {
-                tokens.forEach(pair -> showToken(pair.getFirst(), pair.getSecond()));
-            }
             showSpelling(cursor);
             showUsr(cursor);
             showLinkage(cursor);
@@ -88,10 +85,16 @@ public final class AstVisitor implements CursorVisitor<AstNode>, ParentNodeAware
              * calling `visitChildren`
              * (except for client data not being updated).
              */
-            final AstNode newParent = parentNode.newChild(cursorType);
-            return withNewParent(newParent, () -> visitChildren(cursor, newParent))
-                   ? BREAK
-                   : CONTINUE;
+            final AstNode childNode = parentNode.addChild(cursorType, null, null);
+            final Boolean interrupted = withNewParent(childNode, () -> visitChildren(cursor, childNode));
+
+            if (childNode.isLeaf()) {
+                try (final Tokens tokens = new Tokens(cursor)) {
+                    tokens.forEach(pair -> addToken(childNode, pair.getFirst(), pair.getSecond()));
+                }
+            }
+
+            return interrupted ? BREAK : CONTINUE;
         }
     }
 
