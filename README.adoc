@@ -45,8 +45,8 @@ int main(int argc, char *argv[]) {
 
 can be converted into the following graph:
 
-image::array-subscript-dot.svg[Export from DOT using GVEdit,link="https://graphviz.org"]
+image::array-subscript-dot.svg[Export from DOT using GVEdit,link="https://raw.githubusercontent.com/0x6675636b796f75676974687562/libclang-example/master/docs/images/array-subscript-dot.svg"]
 
 Alternative rendering:
 
-image::array-subscript-radial.svg[Export from GraphML using yEd,link="https://www.yworks.com/products/yed"]
+image::array-subscript-radial.svg[Export from GraphML using yEd,link="https://raw.githubusercontent.com/0x6675636b796f75676974687562/libclang-example/master/docs/images/array-subscript-radial.svg"]
