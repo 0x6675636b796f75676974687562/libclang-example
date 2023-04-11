@@ -8,7 +8,10 @@
 image::https://img.shields.io/badge/License-MIT-yellow.svg[License: MIT,link="https://opensource.org/licenses/MIT"]
 --
 
-The following C source code:
+link:https://github.com/ShiftLeftSecurity/overflowdb[_OverflowDB_] can produce
+both link:http://graphml.graphdrawing.org/primer/graphml-primer.html[_GraphML_]
+and link:https://graphviz.org/doc/info/lang.html[_DOT_] files.
+So, the following C source code:
 
 [source,c]
 --
@@ -43,10 +46,12 @@ int main(int argc, char *argv[]) {
 }
 --
 
-can be converted into the following graph:
+can be exported into the following graph (_DOT_,
+converted to _SVG_ using link:https://graphviz.org[_GVEdit_]):
 
 image::array-subscript-dot.svg[Export from DOT using GVEdit,link="https://raw.githubusercontent.com/0x6675636b796f75676974687562/libclang-example/master/docs/images/array-subscript-dot.svg"]
 
-Alternative rendering:
+Alternative rendering (_GraphML_,
+converted to _SVG_ using link:https://www.yworks.com/products/yed[_yEd_]):
 
 image::array-subscript-radial.svg[Export from GraphML using yEd,link="https://raw.githubusercontent.com/0x6675636b796f75676974687562/libclang-example/master/docs/images/array-subscript-radial.svg"]
