@@ -10,3 +10,7 @@
 /.settings/
 /.classpath
 /.project
+
+*.h2
+*.dot
+*.graphml
