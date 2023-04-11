@@ -1,7 +1,8 @@
 package com.example;
 
+import com.example.overflowdb.AstChildEdge;
+import com.example.overflowdb.AstNextSiblingEdge;
 import com.example.overflowdb.AstNodeRef;
-import com.example.overflowdb.AstParentEdge;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.clang.CXCursor;
@@ -9,12 +10,13 @@ import org.bytedeco.llvm.clang.CXIndex;
 import org.bytedeco.llvm.clang.CXTranslationUnit;
 import org.bytedeco.llvm.clang.CXUnsavedFile;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import overflowdb.Config;
 import overflowdb.Graph;
-import overflowdb.Node;
 import overflowdb.formats.dot.DotExporter;
 import overflowdb.formats.graphml.GraphMLExporter;
 
+import java.awt.Color;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -90,16 +92,71 @@ public final class AstVisitorMain {
 		try (final Graph graph = Graph.open(
 				config,
 				List.of(AstNodeRef.FACTORY),
-				List.of(AstParentEdge.FACTORY)
+				List.of(AstChildEdge.FACTORY, AstNextSiblingEdge.FACTORY)
 		)) {
-			final Node graphRoot = graph.addNode(
-					AstNodeRef.LABEL_V,
-					AstNodeRef.LABEL,
-					rootAstNode.getText()
-			);
+			addRoot(graph, rootAstNode);
 
 			GraphMLExporter.runExport(graph, Path.of(fileName + ".graphml").toAbsolutePath());
 			DotExporter.runExport(graph, Path.of(fileName + ".dot").toAbsolutePath());
 		}
+	}
+
+	private static void addRoot(
+			final @NonNull Graph graph,
+			final @NonNull AstNode rootAstNode
+	) {
+		final AstNodeRef graphRoot = (AstNodeRef) graph.addNode(
+				AstNodeRef.LABEL_V,
+				AstNodeRef.LABEL,
+				rootAstNode.getText(),
+				AstNodeRef.COLOR,
+				Color.RED
+		);
+
+		AstNodeRef previousSibling = null;
+		for (final AstNode astChild : rootAstNode.getChildren()) {
+			previousSibling = addChildRecursively(graphRoot, astChild, previousSibling);
+		}
+	}
+
+	private static @NonNull AstNodeRef addChildRecursively(
+			final @NonNull AstNodeRef graphParent,
+			final @NonNull AstNode astChild,
+			final @Nullable AstNodeRef previousSibling
+	) {
+		final AstNodeRef graphChild = addChild(graphParent, astChild, previousSibling);
+
+		AstNodeRef graphSubChild = null;
+		for (final AstNode astSubChild : astChild.getChildren()) {
+			graphSubChild = addChildRecursively(graphChild, astSubChild, graphSubChild);
+		}
+
+		return graphChild;
+	}
+
+	private static @NonNull AstNodeRef addChild(
+			final @NonNull AstNodeRef graphParent,
+			final @NonNull AstNode astChild,
+			final @Nullable AstNodeRef previousSibling
+	) {
+		final Color color;
+		final AstNodeKind kind = astChild.getKind();
+		if (kind instanceof TokenKind) {
+			color = Color.CYAN;
+		} else {
+			color = Color.GREEN;
+		}
+
+		final AstNodeRef graphChild = graphParent.addChild(
+				astChild.getText(),
+				kind,
+				color
+		);
+
+		if (previousSibling != null) {
+			previousSibling.addNextSibling(graphChild);
+		}
+
+		return graphChild;
 	}
 }

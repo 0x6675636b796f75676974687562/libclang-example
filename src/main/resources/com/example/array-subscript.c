@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
 
     printf("%d\n", 4[integers]);
 
-    const char *string = "АБВГДЕЁабвгдеё";
+    const char *string = "ABCD";
     printf("%c\n", string[0]);
 
     printf("%c\n", 1[string]);
