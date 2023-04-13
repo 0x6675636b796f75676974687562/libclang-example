@@ -16,6 +16,8 @@ So, the following C source code:
 [source,c]
 --
 #include <stdio.h>
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2F0x6675636b796f75676974687562%2Flibclang-example.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2F0x6675636b796f75676974687562%2Flibclang-example?ref=badge_shield)
+
 
 int main(int argc, char *argv[]) {
     int integers[] = {1, 2, 3, 4, 5};
@@ -55,3 +57,7 @@ Alternative rendering (_GraphML_,
 converted to _SVG_ using link:https://www.yworks.com/products/yed[_yEd_]):
 
 image::array-subscript-radial.svg[Export from GraphML using yEd,link="https://raw.githubusercontent.com/0x6675636b796f75676974687562/libclang-example/master/docs/images/array-subscript-radial.svg"]
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2F0x6675636b796f75676974687562%2Flibclang-example.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2F0x6675636b796f75676974687562%2Flibclang-example?ref=badge_large)
