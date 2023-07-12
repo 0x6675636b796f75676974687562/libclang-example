@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.8.20"
+    kotlin("jvm") version "1.9.0"
 }
 
 repositories {
@@ -16,6 +16,7 @@ dependencies {
     implementation("org.bytedeco:mkl:2022.2-1.5.8")
     implementation("org.bytedeco:mkl-platform:2022.2-1.5.8")
     implementation("org.bytedeco:mkl-platform-redist:2022.2-1.5.8")
+    implementation("com.saveourtool.kompiledb:kompiledb-gson:1.0.1")
     implementation("org.checkerframework:checker-qual:3.33.0")
 
     /*
